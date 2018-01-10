@@ -1,0 +1,33 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>Directed Chord Diagram</title>
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="vis/d3.directedChord.js"></script>
+</head>
+
+<body>
+
+<h1>Directed Chord Diagram</h1>
+<div id="visDiv"></div>
+
+<script type="text/javascript">
+
+// Set filename here
+var fileName = "data/davidson-wildcats-assists.csv";
+
+var directedChord = d3.directedChord();
+
+d3.csv(fileName, function(error, data) {
+  if (error) {
+    console.log(error);
+  }
+
+  d3.select("#visDiv")
+      .datum(data)
+      .call(directedChord);
+});
+
+</script>
+</body>
+</html>
