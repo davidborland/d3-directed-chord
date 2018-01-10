@@ -183,21 +183,21 @@
             .data(chords.groups);
 
         // Enter
-        var zoneEnter = zone.enter().append("g")
+        var zoneEnter = zone.enter().append("path")
             .attr("class", "zone")
             .on("mouseover", highlightZone)
             .on("mouseout", clearHighlight);
 
-        zoneEnter.append("path")
-            .style("fill", function(d, i) {
-              return i % 2 === 0 ? "#b2182b" : "#2166ac";
-            });
-
         // Enter + update
-        var zoneUpdate = zoneEnter.merge(zone);
-
-        zoneUpdate.select("path")
-            .attr("d", arc);
+        zoneEnter.merge(zone)
+            .attr("d", arc)
+            .style("fill", function(d, i) {
+              return i % 2 === 0 ? "#999" : "#ddd";
+            })
+            .style("stroke", function(d, i) {
+              return primaryColorScale(0.75);
+            })
+            .style("stroke-width", 2);
 
         // Exit
         zone.exit().remove();
@@ -341,55 +341,76 @@
         }
       }
 
-      function hasZone(node, zone) {
-        return node.groups[0].index === zone.index ||
-               node.groups[1].index === zone.index;
-      }
-
       function highlightNode(node) {
         d3.select(this)
-            .style("stroke", primaryColorScale(1))
             .style("stroke-width", 3);
 
-        highlightChords(node.groups.map(function(d) {
+        highlightConnected(node.groups.map(function(d) {
           return d.index;
         }));
       }
 
       function highlightZone(zone) {
         d3.select(this)
-            .style("stroke", "black");
+            .style("stroke-width", 3);
 
-        highlightChords(zone.index);
-
-        svg.select(".chords").selectAll(".chord")
-            .style("fill-opacity", function(d) {
-              return d.source.index === zone.index ||
-                     d.target.index === zone.index ? 0.9 : 0.1;
-            });
+        highlightConnected(zone.index);
       }
 
       function highlightChord(chord) {
-        d3.select(".chords").selectAll(".chord")
-            .style("fill-opacity", function(d) {
-              return chord === d ? 0.9 : 0.1;
-            });
-
-        d3.select(this)
-            .style("stroke", "black");
+        doHighlight(chord, [chord.source.index, chord.target.index]);
       }
 
-      function highlightChords(indeces) {
+      function highlightConnected(indeces) {
         if (!indeces.length) indeces = [indeces];
 
-        function hasChord(d) {
+        var connectedChords = chords.filter(function(d) {
           return indeces.indexOf(d.source.index) !== -1 ||
                  indeces.indexOf(d.target.index) !== -1;
+        });
+
+        var connectedIndeces = d3.merge(connectedChords.map(function(d) {
+          return [d.source.index, d.target.index];
+        }));
+
+        doHighlight(connectedChords, connectedIndeces);
+      }
+
+      function doHighlight(connectedChords, connectedIndeces) {
+        if (!connectedChords.length) connectedChords = [connectedChords];
+        if (!connectedIndeces.length) connectedIndeces = [connectedIndeces];
+
+        function match(a, b) {
+          if (!a.length) a = [a];
+          if (!b.length ) b = [b];
+
+          for (var i = 0; i < a.length; i++) {
+            if (b.indexOf(a[i]) !== -1) return true;
+          }
+
+          return false;
         }
+
+        d3.select(".nodes").selectAll(".node").filter(function(d) {
+              return !match(d.groups.map(function(d) { return d.index}), connectedIndeces);
+            })
+            .style("fill", function(d) {
+              return primaryColorScale(0.05);
+            })
+            .style("stroke", function(d) {
+              return primaryColorScale(0.2);
+            });
+
+        d3.select(".zones").selectAll(".zone").filter(function(d) {
+              return !match(d.index, connectedIndeces);
+            })
+            .style("stroke", function(d) {
+              return primaryColorScale(0.1);
+            });
 
         d3.select(".chords").selectAll(".chord")
             .style("fill-opacity", function(d) {
-              return hasChord(d) ? 0.9 : 0.1;
+              return match(d, connectedChords) ? 0.9 : 0.1;
             });
       }
 
@@ -400,7 +421,8 @@
             .style("stroke-width", 2);
 
         d3.select(".zones").selectAll(".zone")
-            .style("stroke", null);
+            .style("stroke", primaryColorScale(0.75))
+            .style("stroke-width", 2);
 
         svg.select(".chords").selectAll(".chord")
             .style("fill-opacity", 0.5)
