@@ -32,6 +32,16 @@
         nodeHeight = 40,
         zoneHeight = 10,
 
+        // Colors
+        primaryColor = "#b2182b",
+        secondaryColor = "#2166ac",
+
+        // Color scales
+        primaryColorScale = d3.scaleLinear()
+            .domain([0, 1]),
+        secondaryColorScale = d3.scaleLinear()
+            .domain([0, 1]),
+
         // Start with empty selections
         svg = d3.select();
 
@@ -120,6 +130,10 @@
       svg .attr("width", width)
           .attr("height", height);
 
+      // Set color scales
+      primaryColorScale.range(["white", primaryColor]);
+      secondaryColorScale.range(["white", secondaryColor]);
+
       // Three raddii defining zones and nodes
       var size = Math.min(innerWidth(), innerHeight()),
           outerRadius = size / 2,
@@ -140,12 +154,14 @@
         // Enter
         var chordEnter = chord.enter().append("path")
             .attr("class", "chord")
-            .style("fill", "#666")
-            .style("fill-opacity", 0.5);
+            .style("fill", secondaryColorScale(1))
+            .style("fill-opacity", 0.5)
+            .on("mouseover", highlightChord)
+            .on("mouseout", clearHighlight);
 
         chordEnter.append("title")
             .text(function(d) {
-              return d.source.index + "->" + d.target.index + ": " + d.source.value + ", " + d.target.value;
+              return d.source.value;
             });
 
         // Enter + update
@@ -168,7 +184,9 @@
 
         // Enter
         var zoneEnter = zone.enter().append("g")
-            .attr("class", "zone");
+            .attr("class", "zone")
+            .on("mouseover", highlightZone)
+            .on("mouseout", clearHighlight);
 
         zoneEnter.append("path")
             .style("fill", function(d, i) {
@@ -197,7 +215,8 @@
             index: i,
             startAngle: g1.startAngle - 0.01,
             endAngle: g2.endAngle + 0.01,
-            value: g1.value + g2.value
+            value: g1.value + g2.value,
+            groups: [g1, g2]
           }
         });
 
@@ -213,9 +232,11 @@
         // Enter
         var nodeEnter = node.enter().append("path")
             .attr("class", "node")
-            .style("fill", "#ddd")
-            .style("stroke", "#999")
-            .style("stroke-width", 2);
+            .style("fill", primaryColorScale(0.25))
+            .style("stroke", primaryColorScale(0.75))
+            .style("stroke-width", 2)
+            .on("mouseover", highlightNode)
+            .on("mouseout", clearHighlight);
 
         // Enter + update
         nodeEnter.merge(node)
@@ -258,7 +279,8 @@
             .attr("class", "nodeLabel")
             .style("text-anchor", "middle")
             .style("dominant-baseline", "middle")
-            .style("font-family", "sans-serif");
+            .style("font-family", "sans-serif")
+            .style("pointer-events", "none");
 
         labelEnter.append("textPath")
             .attr("xlink:href", function(d) {
@@ -317,6 +339,72 @@
 
           return initials.toUpperCase();
         }
+      }
+
+      function hasZone(node, zone) {
+        return node.groups[0].index === zone.index ||
+               node.groups[1].index === zone.index;
+      }
+
+      function highlightNode(node) {
+        d3.select(this)
+            .style("stroke", primaryColorScale(1))
+            .style("stroke-width", 3);
+
+        highlightChords(node.groups.map(function(d) {
+          return d.index;
+        }));
+      }
+
+      function highlightZone(zone) {
+        d3.select(this)
+            .style("stroke", "black");
+
+        highlightChords(zone.index);
+
+        svg.select(".chords").selectAll(".chord")
+            .style("fill-opacity", function(d) {
+              return d.source.index === zone.index ||
+                     d.target.index === zone.index ? 0.9 : 0.1;
+            });
+      }
+
+      function highlightChord(chord) {
+        d3.select(".chords").selectAll(".chord")
+            .style("fill-opacity", function(d) {
+              return chord === d ? 0.9 : 0.1;
+            });
+
+        d3.select(this)
+            .style("stroke", "black");
+      }
+
+      function highlightChords(indeces) {
+        if (!indeces.length) indeces = [indeces];
+
+        function hasChord(d) {
+          return indeces.indexOf(d.source.index) !== -1 ||
+                 indeces.indexOf(d.target.index) !== -1;
+        }
+
+        d3.select(".chords").selectAll(".chord")
+            .style("fill-opacity", function(d) {
+              return hasChord(d) ? 0.9 : 0.1;
+            });
+      }
+
+      function clearHighlight() {
+        d3.select(".nodes").selectAll(".node")
+            .style("fill", primaryColorScale(0.25))
+            .style("stroke", primaryColorScale(0.75))
+            .style("stroke-width", 2);
+
+        d3.select(".zones").selectAll(".zone")
+            .style("stroke", null);
+
+        svg.select(".chords").selectAll(".chord")
+            .style("fill-opacity", 0.5)
+            .style("stroke", null);
       }
     }
 
