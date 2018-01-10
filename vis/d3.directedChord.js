@@ -271,13 +271,25 @@
         labelEnter.merge(label)
             .attr("dx", dx)
           .select("textPath")
-            .text(function(d) { return d.name; });
+            .text(function(d) { return d.name; })
+            .each(function(d) {
+              var w = this.getBBox().width;
+
+              if (w > arcLength(d.endAngle) - arcLength(d.startAngle) - 10) {
+                d3.select(this)
+                    .text(initials(d.name));
+              }
+            });
 
         // Exit
         node.exit().remove();
 
+        function arcLength(a) {
+          return c * a / (2 * Math.PI);
+        }
+
         function dx(d) {
-          var x = c * mid(d) / (2 * Math.PI);
+          var x = arcLength(mid(d));
 
           return flip(d) ? c - x : x;
         }
@@ -294,6 +306,16 @@
           var a = mid(d);
 
           return a > Math.PI / 2 && a < 3 * Math.PI / 2 ? 1 : 0;
+        }
+
+        function initials(s) {
+          var initials = "";
+
+          s.split(" ").forEach(function(d, i, a) {
+            initials += d[0] + ".";
+          });
+
+          return initials.toUpperCase();
         }
       }
     }
