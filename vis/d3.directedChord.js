@@ -221,6 +221,9 @@
             .on("mouseover", highlightZone)
             .on("mouseout", clearHighlight);
 
+        zoneEnter.append("title")
+            .text(function(d) { return d.value; });
+
         zoneEnter.append("path")
             .attr("class", "arc");
 
