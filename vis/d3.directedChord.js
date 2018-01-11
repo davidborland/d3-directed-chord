@@ -201,7 +201,7 @@
 
         function triangle(d, i) {
           var flip = i % 2 === 1,
-              m = (d.startAngle + d.endAngle) / 2,
+              m = mid(d),
               h = flip ? -zoneHeight * 1.5 : zoneHeight * 1.5,
               w = 0.05,
               r = flip ? innerRadius - zoneHeight / 2 : innerRadius + zoneHeight / 2;
@@ -296,17 +296,16 @@
             .style("fill", "none")
             .style("visibility", "hidden");
 
-        // Get label lengths
-        var lengths = [];
-
+        // Set shortened names
         svg.select(".nodeLabels").selectAll(".tempLabel")
             .data(nodes)
           .enter().append("text")
             .text(function(d) { return d.name; })
             .attr("class", "tempLabel")
             .style("font-family", "sans-serif")
-            .each(function() {
-              lengths.push(this.getBBox().width);
+            .each(function(d) {
+              d.shortName = this.getBBox().width > arcLength(d.endAngle) - arcLength(d.startAngle) - 10 ?
+                            initials(d.name) : d.name
             })
             .remove();
 
@@ -329,13 +328,7 @@
 
         // Enter + update
         labelEnter.merge(label)
-            .attr("dx", dx)
-          .select("textPath")
-            .text(function(d, i) {
-              // Use initials if too long
-              return lengths[i] > arcLength(d.endAngle) - arcLength(d.startAngle) - 10 ?
-                     initials(d.name) : d.name;
-            });
+            .attr("dx", dx);
 
         // Exit
         label.exit().remove();
@@ -353,45 +346,68 @@
         function circleId(i) {
           return "labelCircle" + i;
         }
+      }
 
-        function mid(d) {
-          return (d.startAngle + d.endAngle) / 2;
-        }
+      function mid(arc) {
+        return (arc.startAngle + arc.endAngle) / 2;
+      }
 
-        function flip(d) {
-          var a = mid(d);
+      function flip(node) {
+        var a = mid(node);
 
-          return a > Math.PI / 2 && a < 3 * Math.PI / 2 ? 1 : 0;
-        }
+        return a > Math.PI / 2 && a < 3 * Math.PI / 2 ? 1 : 0;
+      }
 
-        function initials(s) {
-          var initials = "";
+      function getNode(zoneIndex) {
+        return nodes[Math.floor(zoneIndex / 2)];
+      }
 
-          s.split(" ").forEach(function(d, i, a) {
-            initials += d[0] + ".";
-          });
+      function initials(s) {
+        var initials = "";
 
-          return initials.toUpperCase();
-        }
+        s.split(" ").forEach(function(d, i, a) {
+          initials += d[0] + ".";
+        });
+
+        return initials.toUpperCase();
       }
 
       function highlightNode(node) {
         d3.select(this)
             .style("stroke-width", 3);
 
+        highlightLabel(node);
+
         highlightConnected(node.groups.map(function(d) {
           return d.index;
         }));
+      }
+
+      function highlightLabel(node) {
+        var h = nodeHeight / 2 + 6;
+
+        svg.select(".nodeLabels").selectAll(".nodeLabel")
+            .filter(function(d) {
+              return d === node;
+            })
+            .attr("dy", flip(node) ? h + 5 : -h)
+          .select("textPath")
+            .text(function(d) { return d.name; });
       }
 
       function highlightZone(zone) {
         d3.select(this)
             .style("stroke-width", 3);
 
+        highlightLabel(getNode(zone.index));
+
         highlightConnected(zone.index);
       }
 
       function highlightChord(chord) {
+        highlightLabel(getNode(chord.source.index));
+        highlightLabel(getNode(chord.target.index));
+
         doHighlight(chord, [chord.source.index, chord.target.index]);
       }
 
@@ -471,7 +487,10 @@
             .style("stroke-width", 2);
 
         svg.select(".nodeLabels").selectAll(".nodeLabel")
-            .style("fill", labelColorScale(1));
+            .attr("dy", 0)
+            .style("fill", labelColorScale(1))
+          .select("textPath")
+            .text(function(d) { return d.shortName; });
       }
     }
 
