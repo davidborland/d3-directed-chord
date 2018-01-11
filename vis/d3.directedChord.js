@@ -14,14 +14,14 @@
 (function() {
   d3.directedChord = function() {
         // Size
-    var margin = { top: 20, left: 20, bottom: 20, right: 20 },
+    var margin = { top: 30, left: 30, bottom: 30, right: 30 },
         width = 800,
         height = 800,
         innerWidth = function() { return width - margin.left - margin.right; },
         innerHeight = function() { return height - margin.top - margin.bottom; },
 
         // Events
-        event = d3.dispatch("highlightNode", "highlightZone", "highlightLink"),
+        event = d3.dispatch("highlightNode", "highlightZone", "highlightChord"),
 
         // Data
         data = [],
@@ -46,7 +46,10 @@
             .domain([0, 1]),
 
         // Start with empty selections
-        svg = d3.select();
+        svg = d3.select(),
+
+        // Event dispatcher
+        dispatcher = d3.dispatch("highlightNode", "highlightZone", "highlightChord");
 
     // Create a closure containing the above variables
     function directedChord(selection) {
@@ -173,7 +176,10 @@
             .style("fill", secondaryColorScale(1))
             .style("stroke", primaryColorScale(1))
             .on("mouseover", highlightChord)
-            .on("mouseout", clearHighlight);
+            .on("mouseout", function() {
+              clearHighlight();
+              dispatcher.call("highlightChord", this, null);
+            });;
 
         chordEnter.append("title")
             .text(function(d) {
@@ -219,7 +225,10 @@
         var zoneEnter = zone.enter().append("g")
             .attr("class", "zone")
             .on("mouseover", highlightZone)
-            .on("mouseout", clearHighlight);
+            .on("mouseout", function() {
+              clearHighlight();
+              dispatcher.call("highlightZone", this, null);
+            });
 
         zoneEnter.append("title")
             .text(function(d) { return d.value; });
@@ -260,7 +269,10 @@
         var nodeEnter = node.enter().append("path")
             .attr("class", "node")
             .on("mouseover", highlightNode)
-            .on("mouseout", clearHighlight);
+            .on("mouseout", function() {
+              clearHighlight();
+              dispatcher.call("highlightNode", this, null);
+            });
 
         // Enter + update
         nodeEnter.merge(node)
@@ -381,6 +393,10 @@
         highlightConnected(node.groups.map(function(d) {
           return d.index;
         }));
+
+        dispatcher.call("highlightNode", this, {
+          name: node.name
+        });
       }
 
       function highlightLabel(node) {
@@ -402,6 +418,12 @@
         highlightLabel(getNode(zone.index));
 
         highlightConnected(zone.index);
+
+        dispatcher.call("highlightZone", this, {
+          name: getNode(zone.index).name,
+          type: zone.index % 2 === 0 ? "outoing" : "incoming",
+          value: zone.value
+        });
       }
 
       function highlightChord(chord) {
@@ -409,6 +431,25 @@
         highlightLabel(getNode(chord.target.index));
 
         doHighlight(chord, [chord.source.index, chord.target.index]);
+
+        // Get information for callback
+        var sourceName,
+            targetName;
+
+        if (chord.source.index % 2 === 0) {
+          sourceName = getNode(chord.source.index).name;
+          targetName = getNode(chord.target.index).name;
+        }
+        else {
+          sourceName = getNode(chord.target.index).name;
+          targetName = getNode(chord.source.index).name;
+        }
+
+        dispatcher.call("highlightChord", this, {
+          sourceName: sourceName,
+          targetName: targetName,
+          value: chord.source.value
+        });
       }
 
       function highlightConnected(indeces) {

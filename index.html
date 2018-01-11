@@ -25,15 +25,27 @@ body {
 //var fileName = "data/davidson-wildcats-assists.csv";
 var fileName = "data/away_data.csv";
 
+// Create the directed chord function, and set some simple callbacks
 var directedChord = d3.directedChord()
     .primaryColor("#006633")
-    .secondaryColor("#FFCC33");
+    .secondaryColor("#FFCC33")
+    .on("highlightNode", function(d) {
+      if (d) console.log(d.name);
+    })
+    .on("highlightZone", function(d) {
+      if (d) console.log(d.name, d.type, d.value);
+    })
+    .on("highlightChord", function(d) {
+      if (d) console.log(d.sourceName, d.targetName, d.value);
+    });
 
+// Load the data
 d3.csv(fileName, function(error, data) {
   if (error) {
     console.log(error);
   }
 
+  // Draw the visualization
   d3.select("#visDiv")
       .datum(data)
       .call(directedChord);
