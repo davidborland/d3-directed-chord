@@ -119,7 +119,8 @@
 
       // Create chords
       var chordLayout = d3.chord()
-      .padAngle(0.04);
+          .padAngle(0.04)
+          .sortChords(d3.ascending);
 
       chords = chordLayout(matrix);
 
