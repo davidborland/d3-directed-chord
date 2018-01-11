@@ -35,11 +35,14 @@
         // Colors
         primaryColor = "#b2182b",
         secondaryColor = "#2166ac",
+        labelColor = "#000",
 
         // Color scales
         primaryColorScale = d3.scaleLinear()
             .domain([0, 1]),
         secondaryColorScale = d3.scaleLinear()
+            .domain([0, 1]),
+        labelColorScale = d3.scaleLinear()
             .domain([0, 1]),
 
         // Start with empty selections
@@ -142,6 +145,7 @@
       // Set color scales
       primaryColorScale.range(["white", primaryColor]);
       secondaryColorScale.range(["white", secondaryColor]);
+      labelColorScale.range(["white", labelColor]);
 
       // Three raddii defining zones and nodes
       var size = Math.min(innerWidth(), innerHeight()),
@@ -152,6 +156,8 @@
       drawZones();
       drawNodes();
       drawLabels();
+
+      clearHighlight();
 
       function drawChords() {
         var ribbon = d3.ribbon()
@@ -165,7 +171,7 @@
         var chordEnter = chord.enter().append("path")
             .attr("class", "chord")
             .style("fill", secondaryColorScale(1))
-            .style("fill-opacity", 0.5)
+            .style("stroke", primaryColorScale(1))
             .on("mouseover", highlightChord)
             .on("mouseout", clearHighlight);
 
@@ -213,8 +219,7 @@
         var zoneEnter = zone.enter().append("g")
             .attr("class", "zone")
             .on("mouseover", highlightZone)
-            .on("mouseout", clearHighlight)
-            .style("stroke-width", 2);
+            .on("mouseout", clearHighlight);
 
         zoneEnter.append("path")
             .attr("class", "arc");
@@ -224,12 +229,6 @@
 
         // Enter + update
         var zoneUpdate = zoneEnter.merge(zone)
-            .style("fill", function(d, i) {
-              return i % 2 === 0 ? "#999" : "#ddd";
-            })
-            .style("stroke", function(d, i) {
-              return primaryColorScale(0.75);
-            })
             .style("visibility", function(d) {
               return d.value === 0 ? "hidden" : null;
             });
@@ -257,9 +256,6 @@
         // Enter
         var nodeEnter = node.enter().append("path")
             .attr("class", "node")
-            .style("fill", primaryColorScale(0.25))
-            .style("stroke", primaryColorScale(0.75))
-            .style("stroke-width", 2)
             .on("mouseover", highlightNode)
             .on("mouseout", clearHighlight);
 
@@ -272,7 +268,7 @@
       }
 
       function drawLabels() {
-        // Create a path for labels
+        // Create paths for labels, one for the top half, and one for the bottom
         var r = (innerRadius + outerRadius) / 2 + zoneHeight / 4,
             c = 2 * Math.PI * r;
 
@@ -325,9 +321,7 @@
 
         labelEnter.append("textPath")
             .attr("xlink:href", function(d) {
-              var i = flip(d) ? 1 : 0;
-
-              return "#" + circleId(i);
+              return "#" + circleId(flip(d) ? 1 : 0);
             });
 
         // Enter + update
@@ -335,6 +329,7 @@
             .attr("dx", dx)
           .select("textPath")
             .text(function(d, i) {
+              // Use initials if too long
               return lengths[i] > arcLength(d.endAngle) - arcLength(d.startAngle) - 10 ?
                      initials(d.name) : d.name;
             });
@@ -427,42 +422,53 @@
           return false;
         }
 
-        d3.select(".nodes").selectAll(".node").filter(function(d) {
-              return !match(d.groups.map(function(d) { return d.index}), connectedIndeces);
-            })
-            .style("fill", function(d) {
-              return primaryColorScale(0.05);
-            })
-            .style("stroke", function(d) {
-              return primaryColorScale(0.2);
-            });
-
-        d3.select(".zones").selectAll(".zone").filter(function(d) {
-              return !match(d.index, connectedIndeces);
-            })
-            .style("stroke", function(d) {
-              return primaryColorScale(0.1);
-            });
-
-        d3.select(".chords").selectAll(".chord")
+        svg.select(".chords").selectAll(".chord")
             .style("fill-opacity", function(d) {
               return match(d, connectedChords) ? 0.9 : 0.1;
+            })
+            .style("stroke-opacity", function(d) {
+              return match(d, connectedChords) ? 0.9 : 0.1;
             });
+
+        svg.select(".zones").selectAll(".zone").filter(function(d) {
+              return !match(d.index, connectedIndeces);
+            })
+            .style("fill", function(d, i) {
+              return i % 2 === 0 ? primaryColorScale(0.05) : secondaryColorScale(0.05);
+            })
+            .style("stroke", primaryColorScale(0.2));
+
+        svg.select(".nodes").selectAll(".node").filter(function(d) {
+              return !match(d.groups.map(function(d) { return d.index}), connectedIndeces);
+            })
+            .style("fill", primaryColorScale(0.1))
+            .style("stroke", primaryColorScale(0.2));
+
+        svg.select(".nodeLabels").selectAll(".nodeLabel").filter(function(d) {
+              return !match(d.groups.map(function(d) { return d.index}), connectedIndeces);
+            })
+            .style("fill", labelColorScale(0.2));
       }
 
       function clearHighlight() {
-        d3.select(".nodes").selectAll(".node")
-            .style("fill", primaryColorScale(0.25))
-            .style("stroke", primaryColorScale(0.75))
-            .style("stroke-width", 2);
-
-        d3.select(".zones").selectAll(".zone")
-            .style("stroke", primaryColorScale(0.75))
-            .style("stroke-width", 2);
-
         svg.select(".chords").selectAll(".chord")
             .style("fill-opacity", 0.5)
-            .style("stroke", null);
+            .style("stroke-opacity", 0.5);
+
+        svg.select(".zones").selectAll(".zone")
+            .style("fill", function(d, i) {
+              return i % 2 === 0 ? primaryColorScale(0.25) : secondaryColorScale(0.25);
+            })
+            .style("stroke", primaryColorScale(1))
+            .style("stroke-width", 2);
+
+        svg.select(".nodes").selectAll(".node")
+            .style("fill", primaryColorScale(0.5))
+            .style("stroke", primaryColorScale(1))
+            .style("stroke-width", 2);
+
+        svg.select(".nodeLabels").selectAll(".nodeLabel")
+            .style("fill", labelColorScale(1));
       }
     }
 
@@ -477,6 +483,18 @@
     directedChord.height = function(_) {
       if (!arguments.length) return height;
       height = _;
+      return directedChord;
+    };
+
+    directedChord.primaryColor = function(_) {
+      if (!arguments.length) return primaryColor;
+      primaryColor = _;
+      return directedChord;
+    };
+
+    directedChord.secondaryColor = function(_) {
+      if (!arguments.length) return secondaryColor;
+      secondaryColor = _;
       return directedChord;
     };
 

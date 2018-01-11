@@ -25,7 +25,9 @@ body {
 //var fileName = "data/davidson-wildcats-assists.csv";
 var fileName = "data/away_data.csv";
 
-var directedChord = d3.directedChord();
+var directedChord = d3.directedChord()
+    .primaryColor("#006633")
+    .secondaryColor("#FFCC33");
 
 d3.csv(fileName, function(error, data) {
   if (error) {
