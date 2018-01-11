@@ -67,7 +67,7 @@
                                               (margin.top + innerHeight() / 2) + ")");
 
         // Groups for layout
-        var groups = ["chords", "nodes", "zones"];
+        var groups = ["chords", "nodes", "zones", "nodeLabels"];
 
         g.selectAll("g")
             .data(groups)
@@ -82,10 +82,11 @@
 
     function processData() {
       // Get nodes from row names
-      nodes = data.map(function(d) {
+      var nodeNames = data.map(function(d) {
         return d[""];
       });
 
+      // Create matrix for input to chord layout
       var matrix = [];
 
       data.forEach(function(r, i) {
@@ -94,13 +95,13 @@
             incoming = [];
 
         // Add outgoing links
-        nodes.forEach(function(c) {
+        nodeNames.forEach(function(c) {
           outgoing.push(0);       // Out->out
           outgoing.push(+r[c]);   // Out->in
         });
 
         // Add incoming links
-        var c = nodes[i];
+        var c = nodeNames[i];
         data.forEach(function(r) {
           incoming.push(+r[c]);   // In->out
           incoming.push(0);       // In->in
@@ -110,19 +111,27 @@
         matrix.push(incoming);
       });
 
-      // XXX: Put in check for all-zero row or column?
-/*
-      console.log(data.map(function(d) {
-        return nodes.map(function(n) {
-          return d[n];
-        });
-      }));
-      console.log(matrix);
-*/
+      // Create chords
       var chordLayout = d3.chord()
       .padAngle(0.04);
 
       chords = chordLayout(matrix);
+
+      // Create nodes by combining outgoing and incoming zones
+      nodes = nodeNames.map(function(d, i) {
+        // Two groups per node
+        var g1 = chords.groups[i * 2],
+            g2 = chords.groups[i * 2 + 1];
+
+        return {
+          name: d,
+          index: i,
+          startAngle: g1.startAngle - 0.01,
+          endAngle: g2.endAngle + 0.01,
+          value: g1.value + g2.value,
+          groups: [g1, g2]
+        }
+      });
     }
 
     function draw() {
@@ -142,6 +151,7 @@
       drawChords();
       drawZones();
       drawNodes();
+      drawLabels();
 
       function drawChords() {
         var ribbon = d3.ribbon()
@@ -204,22 +214,6 @@
       }
 
       function drawNodes() {
-        // Combine outgoing and incoming zones
-        var nodeData = nodes.map(function(d, i) {
-          // Two groups per node
-          var g1 = chords.groups[i * 2],
-              g2 = chords.groups[i * 2 + 1];
-
-          return {
-            name: d,
-            index: i,
-            startAngle: g1.startAngle - 0.01,
-            endAngle: g2.endAngle + 0.01,
-            value: g1.value + g2.value,
-            groups: [g1, g2]
-          }
-        });
-
         var arc = d3.arc()
             .innerRadius(innerRadius)
             .outerRadius(outerRadius)
@@ -227,7 +221,7 @@
 
         // Bind node data
         var node = svg.select(".nodes").selectAll(".node")
-            .data(nodeData);
+            .data(nodes);
 
         // Enter
         var nodeEnter = node.enter().append("path")
@@ -244,7 +238,9 @@
 
         // Exit
         node.exit().remove();
+      }
 
+      function drawLabels() {
         // Create a path for labels
         var r = (innerRadius + outerRadius) / 2,
             c = 2 * Math.PI * r;
@@ -270,9 +266,23 @@
             .style("fill", "none")
             .style("visibility", "hidden");
 
+        // Get label lengths
+        var lengths = [];
+
+        svg.select(".nodeLabels").selectAll(".tempLabel")
+            .data(nodes)
+          .enter().append("text")
+            .text(function(d) { return d.name; })
+            .attr("class", "tempLabel")
+            .style("font-family", "sans-serif")
+            .each(function() {
+              lengths.push(this.getBBox().width);
+            })
+            .remove();
+
         // Bind node data for labels
-        var label = svg.select(".nodes").selectAll("g")
-            .data(nodeData);
+        var label = svg.select(".nodeLabels").selectAll(".nodelabel")
+            .data(nodes);
 
         // Enter
         var labelEnter = label.enter().append("text")
@@ -293,18 +303,13 @@
         labelEnter.merge(label)
             .attr("dx", dx)
           .select("textPath")
-            .text(function(d) { return d.name; })
-            .each(function(d) {
-              var w = this.getBBox().width;
-
-              if (w > arcLength(d.endAngle) - arcLength(d.startAngle) - 10) {
-                d3.select(this)
-                    .text(initials(d.name));
-              }
+            .text(function(d, i) {
+              return lengths[i] > arcLength(d.endAngle) - arcLength(d.startAngle) - 10 ?
+                     initials(d.name) : d.name; 
             });
 
         // Exit
-        node.exit().remove();
+        label.exit().remove();
 
         function arcLength(a) {
           return c * a / (2 * Math.PI);
