@@ -188,26 +188,57 @@
             .outerRadius(innerRadius + zoneHeight / 2)
             .cornerRadius(5);
 
+        var area = d3.areaRadial()
+            .angle(function(d) { return d[0]; })
+            .innerRadius(function(d) { return d[1]; })
+            .outerRadius(function(d) { return d[2]; });
+
+        function triangle(d, i) {
+          var flip = i % 2 === 1,
+              m = (d.startAngle + d.endAngle) / 2,
+              h = flip ? -zoneHeight * 1.5 : zoneHeight * 1.5,
+              w = 0.05,
+              r = flip ? innerRadius - zoneHeight / 2 : innerRadius + zoneHeight / 2;
+
+          return area([[m - w / 2, r, r],
+                       [m, r - h, r],
+                       [m + w / 2, r, r]]);
+        }
+
         // Bind chord group data
         var zone = svg.select(".zones").selectAll(".zone")
             .data(chords.groups);
 
         // Enter
-        var zoneEnter = zone.enter().append("path")
+        var zoneEnter = zone.enter().append("g")
             .attr("class", "zone")
             .on("mouseover", highlightZone)
-            .on("mouseout", clearHighlight);
+            .on("mouseout", clearHighlight)
+            .style("stroke-width", 2);
+
+        zoneEnter.append("path")
+            .attr("class", "arc");
+
+        zoneEnter.append("path")
+            .attr("class", "triangle");
 
         // Enter + update
-        zoneEnter.merge(zone)
-            .attr("d", arc)
+        var zoneUpdate = zoneEnter.merge(zone)
             .style("fill", function(d, i) {
               return i % 2 === 0 ? "#999" : "#ddd";
             })
             .style("stroke", function(d, i) {
               return primaryColorScale(0.75);
             })
-            .style("stroke-width", 2);
+            .style("visibility", function(d) {
+              return d.value === 0 ? "hidden" : null;
+            });
+
+        zoneUpdate.select(".arc")
+            .attr("d", arc);
+
+        zoneUpdate.select(".triangle")
+            .attr("d", triangle);
 
         // Exit
         zone.exit().remove();
@@ -242,7 +273,7 @@
 
       function drawLabels() {
         // Create a path for labels
-        var r = (innerRadius + outerRadius) / 2,
+        var r = (innerRadius + outerRadius) / 2 + zoneHeight / 4,
             c = 2 * Math.PI * r;
 
         var circleArc1 = d3.arc()
@@ -305,7 +336,7 @@
           .select("textPath")
             .text(function(d, i) {
               return lengths[i] > arcLength(d.endAngle) - arcLength(d.startAngle) - 10 ?
-                     initials(d.name) : d.name; 
+                     initials(d.name) : d.name;
             });
 
         // Exit
