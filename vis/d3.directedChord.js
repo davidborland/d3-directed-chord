@@ -428,22 +428,35 @@
       }
 
       function highlightChord(chord) {
-        highlightLabel(getNode(chord.source.index));
-        highlightLabel(getNode(chord.target.index));
+        var sourceNode = getNode(chord.source.index),
+            targetNode = getNode(chord.target.index);
 
-        doHighlight(chord, [chord.source.index, chord.target.index]);
+        // Highlight labels
+        highlightLabel(sourceNode);
+        highlightLabel(targetNode);
+
+        // Highlight this chord and its twin
+        var twins = chords.filter(function(d) {
+          var sourceIndex = getNode(d.source.index).index,
+              targetIndex = getNode(d.target.index).index;
+
+          return (sourceIndex === sourceNode.index && targetIndex === targetNode.index) ||
+                 (sourceIndex === targetNode.index && targetIndex === sourceNode.index);
+        });
+
+        doHighlight(twins, [chord.source.index, chord.target.index]);
 
         // Get information for callback
         var sourceName,
             targetName;
 
         if (chord.source.index % 2 === 0) {
-          sourceName = getNode(chord.source.index).name;
-          targetName = getNode(chord.target.index).name;
+          sourceName = sourceNode.name;
+          targetName = targetNode.name;
         }
         else {
-          sourceName = getNode(chord.target.index).name;
-          targetName = getNode(chord.source.index).name;
+          sourceName = targetNode.name;
+          targetName = sourceNode.name;
         }
 
         dispatcher.call("highlightChord", this, {

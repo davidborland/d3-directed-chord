@@ -22,13 +22,18 @@ body {
 <script type="text/javascript">
 
 // Set filename here
-var fileName = "data/davidson-wildcats-assists.csv";
-//var fileName = "data/away_data.csv";
+//var fileName = "data/davidson-wildcats-assists.csv";
+var fileName = "data/away_data.csv";
+//var fileName = "data/d3-example-data.csv";
+
+// Set colors here
+var primaryColor = "#bf812d"
+    secondaryColor = "#35978f";
 
 // Create the directed chord function, and set some simple callbacks
 var directedChord = d3.directedChord()
-    .primaryColor("#006633")
-    .secondaryColor("#FFCC33")
+    .primaryColor(primaryColor)
+    .secondaryColor(secondaryColor)
     .on("highlightNode", function(d) {
       if (d) console.log(d.name);
     })
